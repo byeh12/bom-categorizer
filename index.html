@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOM Categorizer — Ring/Yeti Category Logic</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Amazon Ember', -apple-system, Arial, sans-serif; background: #EAEDED; color: #0F1111; font-size: 13px; }
+.header { background: #232F3E; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; font-weight: 700; }
+.header .subtitle { color: #FF9900; font-size: 12px; }
+.container { max-width: 1440px; margin: 0 auto; padding: 16px; }
+.upload-zone { background: #fff; border: 2px dashed #D5D9D9; border-radius: 8px; padding: 40px; text-align: center; margin-bottom: 16px; transition: all 0.2s; cursor: pointer; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #FF9900; background: #FFF8F0; }
+.upload-zone h2 { font-size: 16px; margin-bottom: 8px; }
+.upload-zone p { color: #565959; font-size: 12px; }
+.upload-zone input[type="file"] { display: none; }
+.btn { display: inline-block; padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: #FF9900; color: #0F1111; }
+.btn-primary:hover { background: #E88B00; }
+.btn-secondary { background: #fff; color: #0F1111; border: 1px solid #D5D9D9; }
+.btn-secondary:hover { background: #F7F8F8; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.hidden { display: none; }
+.steps { display: flex; gap: 8px; margin-bottom: 16px; }
+.step { flex: 1; background: #fff; border: 1px solid #D5D9D9; border-radius: 6px; padding: 12px; text-align: center; }
+.step.active { border-color: #FF9900; background: #FFF8F0; }
+.step.done { border-color: #067D62; background: #F0FFF8; }
+.step .num { display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #D5D9D9; color: #fff; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.step.active .num { background: #FF9900; }
+.step.done .num { background: #067D62; }
+.step .label { font-size: 11px; color: #565959; }
+.panel { background: #fff; border: 1px solid #D5D9D9; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.panel h3 { font-size: 14px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #EAEDED; }
+.mapping-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.mapping-item { display: flex; align-items: center; gap: 8px; }
+.mapping-item label { font-size: 12px; min-width: 120px; color: #565959; }
+.mapping-item select { flex: 1; padding: 6px 8px; border: 1px solid #D5D9D9; border-radius: 4px; font-size: 12px; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.preview-table th { background: #F7F8F8; border-bottom: 2px solid #D5D9D9; padding: 6px 8px; text-align: left; font-weight: 700; color: #565959; text-transform: uppercase; font-size: 10px; position: sticky; top: 0; z-index: 1; }
+.preview-table td { padding: 5px 8px; border-bottom: 1px solid #EAEDED; }
+.preview-table tr:hover td { background: #F7FAFA; }
+.preview-scroll { max-height: 400px; overflow-y: auto; border: 1px solid #EAEDED; border-radius: 4px; }
+.tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+.tag-smt { background: #E3F2FD; color: #1565C0; }
+.tag-fatp { background: #FFF3E0; color: #E65100; }
+.tag-mva { background: #F3E5F5; color: #6A1B9A; }
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.card { background: #fff; border: 1px solid #D5D9D9; border-radius: 6px; padding: 12px; }
+.card .label { font-size: 10px; color: #565959; text-transform: uppercase; }
+.card .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.card .value.orange { color: #C7511F; }
+.rollup-bar { height: 14px; background: #FF9900; border-radius: 2px; display: inline-block; vertical-align: middle; min-width: 2px; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.mono { font-family: 'Courier New', monospace; }
+.section-hdr { background: #F0F2F2; padding: 8px 12px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid #D5D9D9; }
+.section-hdr:hover { background: #E8EAEB; }
+.actions-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: #0F1111; color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.3s; z-index: 999; }
+.toast.show { opacity: 1; }
+select.category-select { padding: 3px 6px; font-size: 11px; border: 1px solid #D5D9D9; border-radius: 3px; background: #fff; }
+.editable-cell { cursor: pointer; }
+.editable-cell:hover { background: #FFF8F0; }
+</style>
+</head>
+<body>
+<div class="header">
+<div>
+<h1>BOM Categorizer</h1>
+<span class="subtitle">Ring / Yeti Category Logic — Automated Classification</span>
+</div>
+<div>
+<button class="btn btn-secondary btn-sm" onclick="downloadTemplate()">⬇ Download Template</button>
+</div>
+</div>
+<div class="container">
+<!-- Steps -->
+<div class="steps">
+<div class="step active" id="step1"><div class="num">1</div><div class="label">Upload BOM</div></div>
+<div class="step" id="step2"><div class="num">2</div><div class="label">Map Columns</div></div>
+<div class="step" id="step3"><div class="num">3</div><div class="label">Review & Categorize</div></div>
+<div class="step" id="step4"><div class="num">4</div><div class="label">Export Report</div></div>
+</div>
+
+<!-- Step 1: Upload -->
+<div id="panel-upload">
+<div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+<h2>📄 Drop your BOM file here</h2>
+<p>Supports .xlsx, .xls, .csv — or click to browse</p>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+</div>
+</div>
+
+<!-- Step 2: Column Mapping -->
+<div id="panel-mapping" class="hidden">
+<div class="panel">
+<h3>Map Your BOM Columns</h3>
+<p style="color:#565959;font-size:12px;margin-bottom:12px;">Select which columns in your file correspond to the required fields.</p>
+<div class="mapping-grid">
+<div class="mapping-item"><label>Part Number *</label><select id="map-pn"></select></div>
+<div class="mapping-item"><label>Description *</label><select id="map-desc"></select></div>
+<div class="mapping-item"><label>Unit Cost *</label><select id="map-cost"></select></div>
+<div class="mapping-item"><label>Quantity *</label><select id="map-qty"></select></div>
+<div class="mapping-item"><label>Where Used (Board)</label><select id="map-board"></select></div>
+<div class="mapping-item"><label>Manufacturer</label><select id="map-mfr"></select></div>
+<div class="mapping-item"><label>Functional Block</label><select id="map-func"></select></div>
+<div class="mapping-item"><label>Commodity Category</label><select id="map-commodity"></select></div>
+</div>
+<div style="display:flex;gap:8px;">
+<button class="btn btn-primary" onclick="runCategorization()">▶ Categorize BOM</button>
+<button class="btn btn-secondary" onclick="resetAll()">↺ Start Over</button>
+</div>
+</div>
+</div>
+
+<!-- Step 3: Results -->
+<div id="panel-results" class="hidden">
+<div class="summary-cards" id="summaryCards"></div>
+<div class="actions-bar">
+<button class="btn btn-primary" onclick="exportCSV()">⬇ Export CSV</button>
+<button class="btn btn-secondary" onclick="exportHTML()">📊 Export HTML Report</button>
+<button class="btn btn-secondary" onclick="resetAll()">↺ New File</button>
+<span style="flex:1"></span>
+<span style="color:#565959;font-size:11px;" id="itemCount"></span>
+</div>
+<!-- Rollup -->
+<div class="panel" id="rollupPanel"></div>
+<!-- Detail -->
+<div class="panel">
+<h3>Categorized BOM Detail</h3>
+<div class="preview-scroll" id="detailScroll" style="max-height:600px;"></div>
+</div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
